@@ -39,5 +39,25 @@ describe Ariblib do
 			end
 		end
 	end
+	describe :BitStream do
+		let(:bs){Ariblib::BitStream.new(Ariblib::FIFO.new([0xaa,1,2,3,4,5,6,7,8]))}
+		it '#read 8' do
+			expect(bs.read 8).to be 0xaa
+		end
+		it '#read 7' do
+			expect(bs.read 7).to be 0x55
+		end
+		context 'after read 1' do
+			before do
+				bs.read 1
+			end
+			it '#read 8' do
+				expect(bs.read 8).to be 0x54
+			end
+			it '#read 16' do
+				expect(bs.read 16).to be 0x5402
+			end
+		end
+	end
 
 end
