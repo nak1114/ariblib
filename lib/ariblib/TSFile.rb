@@ -33,7 +33,7 @@ module Ariblib
 			pos =@bitstream_postion>>3
 			modd=@bitstream_postion&0x07
 			@bitstream_postion+=size
-			mod =((@bitstream_postion^0x07)+1)&0x07
+			mod =(((@bitstream_postion)^0x07).succ)&0x07
 			poss=((size+modd+7)>>3)
 			tmp=0
 			poss.times do |i|
@@ -88,7 +88,7 @@ module Ariblib
 		end
 
 		def transport_packet
-			count                         = 4
+			count                         = @bs.pos+188*8
 			sync_byte                     = @bs.read  8 #bslbf'0x47'
 			return :async unless sync_byte==0x47
 			transport_error_indicator     = @bs.read  1 #bslbf
@@ -103,16 +103,15 @@ module Ariblib
 				adaptation_field_length    = @bs.read  8 #uimsbf
 				adaptation_field_length   += 1 #uimsbf
 				@bs.pos+=adaptation_field_length
-				count                     += 1+adaptation_field_length
 			end
-			n=188-count
+			n=(count)-@bs.pos
 			if(adaptation_field_control==1 || adaptation_field_control==3 )
 				if @target_pid.include? pid then
-					@payload[@pid]+=@bs.buf.byteslice(@bs.pos/8,n)
+					@payload[@pid]+=@bs.buf.byteslice(@bs.pos/8, n/8)
 				end
 				@payload_ap[@pid]+=1
 			end
-			@bs.pos+=n*8
+			@bs.pos=count
 			true
 		end
 

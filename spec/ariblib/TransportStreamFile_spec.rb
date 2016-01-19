@@ -3,7 +3,6 @@ require 'spec_helper'
 describe Ariblib::TransportStreamFile do
 	let(:ts){Ariblib::TransportStreamFile.new('spec/data/test_aa.ts')}
 	it '#sync' do
-		p ts.bs.pos
 		expect(ts.sync).to be true
 		expect(ts.bs.pos).to be 0
 	end
