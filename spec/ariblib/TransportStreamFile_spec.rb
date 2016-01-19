@@ -3,8 +3,9 @@ require 'spec_helper'
 describe Ariblib::TransportStreamFile do
 	let(:ts){Ariblib::TransportStreamFile.new('spec/data/test_aa.ts')}
 	it '#sync' do
+		p ts.bs.pos
 		expect(ts.sync).to be true
-		expect(ts.bs.buf.pos).to be 0
+		expect(ts.bs.pos).to be 0
 	end
 	it '#transport_packet' do
 		while(not ts.eof?) do
@@ -13,7 +14,7 @@ describe Ariblib::TransportStreamFile do
 			end
 		end
 		expect(ts.payload_ap).to eq ({18 => 5})
-		expect(ts.bs.buf.pos).to be 940
+		expect(ts.bs.pos).to be 940*8
 	end
 	context 'after read 8' do
 		before do
@@ -21,7 +22,7 @@ describe Ariblib::TransportStreamFile do
 		end
 		it '#sync' do
 			expect(ts.sync).to be true
-			expect(ts.bs.buf.pos).to be 188
+			expect(ts.bs.pos).to be 188*8
 		end
 	end
 end

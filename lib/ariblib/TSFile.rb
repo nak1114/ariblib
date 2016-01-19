@@ -10,6 +10,9 @@ module Ariblib
 		def add(buf)
 			@buf += buf
 		end
+		def << (buf)
+			@buf << buf
+		end
 		def clear
 			@buf.clear
 		end
@@ -25,20 +28,35 @@ module Ariblib
 		def initialize(buf)
 			@bitstream_buffer=buf
 			@bitstream_postion=0
-			@bitstream_content=0
 		end
 		def read(size)
-			while(@bitstream_postion<size) do
-				@bitstream_postion+=8
-				@bitstream_content<<=8
-				@bitstream_content+=(@bitstream_buffer.getbyte||0)
+			pos =@bitstream_postion>>3
+			modd=@bitstream_postion&0x07
+			@bitstream_postion+=size
+			mod =((@bitstream_postion^0x07)+1)&0x07
+			poss=((size+modd+7)>>3)
+			tmp=0
+			poss.times do |i|
+				tmp<<=8
+				tmp|=@bitstream_buffer.getbyte(pos+i)
 			end
-			@bitstream_postion-=size
-			tmp = (@bitstream_content>>@bitstream_postion) & ((1<<size)-1)
-			return tmp
+			tmpd = (tmp>>mod) & ((1<<size)-1)
+			return tmpd
+		end
+		def lest
+			@bitstream_buffer.size*8-@bitstream_postion
 		end
 		def buf
 			@bitstream_buffer
+		end
+		def buf=(a)
+			@bitstream_buffer=a
+		end
+		def pos
+			@bitstream_postion
+		end
+		def pos=(a)
+			@bitstream_postion=a
 		end
 	end
 
@@ -50,28 +68,29 @@ module Ariblib
 		attr_reader :pid
 		attr_reader :adaptation_field_control
 
-		def initialize(filename)
-			@bs=BitStream.new(open(filename,'rb'))
-			@payload=Hash.new{|k,v|k[v]=[]}
+		def initialize(filename,pid_list=[0x00,0x12,0x13,0x14])
+			@bs=BitStream.new(open(filename,'rb').read)
+			@payload=Hash.new{|k,v|k[v]=''.force_encoding('ASCII-8BIT')}
 			@payload_ap=Hash.new(0)
+			@target_pid=[0x00,0x12,0x26,0x27,0x14]
 		end
 
 		def eof?
-			@bs.buf.eof?
+			@bs.lest<=0
 		end
 
 		def sync
-			while(not @bs.buf.eof? and (c=@bs.read(8))!=0x47) do
+			while(@bs.lest>0 and (c=@bs.read(8))!=0x47) do
 			end
-			@bs.buf.seek(-1,IO::SEEK_CUR) unless @bs.buf.eof?
-			return false if @bs.buf.eof?
+			return false if @bs.lest<=0
+			@bs.pos-=8
 			true
 		end
 
 		def transport_packet
-			adaptation_field_length       = -1
+			count                         = 4
 			sync_byte                     = @bs.read  8 #bslbf'0x47'
-			return false unless sync_byte==0x47
+			return :async unless sync_byte==0x47
 			transport_error_indicator     = @bs.read  1 #bslbf
 			@payload_unit_start_indicator = @bs.read  1 #bslbf
 			transport_priority            = @bs.read  1 #bslbf
@@ -82,16 +101,18 @@ module Ariblib
 			if(adaptation_field_control==2 || adaptation_field_control==3)
 				#adaptation_field()
 				adaptation_field_length    = @bs.read  8 #uimsbf
-				adaptation_field_length   += 1
-				adaptation_field_length.times{@bs.read  8}
+				adaptation_field_length   += 1 #uimsbf
+				@bs.pos+=adaptation_field_length
+				count                     += 1+adaptation_field_length
 			end
-			n=188-5-adaptation_field_length
-			if(adaptation_field_control==1 || adaptation_field_control==3)
-				n.times{ @payload[@pid] << @bs.read(8)}
+			n=188-count
+			if(adaptation_field_control==1 || adaptation_field_control==3 )
+				if @target_pid.include? pid then
+					@payload[@pid]+=@bs.buf.byteslice(@bs.pos/8,n)
+				end
 				@payload_ap[@pid]+=1
-			else
-				n.times{ @bs.read(8)}
 			end
+			@bs.pos+=n*8
 			true
 		end
 

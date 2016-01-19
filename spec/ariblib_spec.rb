@@ -15,6 +15,9 @@ describe Ariblib do
 		it '#add' do
 			expect(fifo.add([0xaa,1])).to eq [0xaa,1,2,3,4,5,6,7,8,0xaa,1]
 		end
+		it '#<<' do
+			expect(fifo << 0xaa).to eq [0xaa,1,2,3,4,5,6,7,8,0xaa]
+		end
 		it '#clear' do
 			expect(fifo.clear).to eq []
 		end
@@ -34,18 +37,24 @@ describe Ariblib do
 			it '#add' do
 				expect(fifo.add([0xaa,1])).to eq [0xaa,1]
 			end
+			it '#<<' do
+				expect(fifo << 0xaa).to eq [0xaa]
+			end
 			it '#eof?' do
 				expect(fifo.eof?).to be true
 			end
 		end
 	end
 	describe :BitStream do
-		let(:bs){Ariblib::BitStream.new(Ariblib::FIFO.new([0xaa,1,2,3,4,5,6,7,8]))}
+		let(:bs){Ariblib::BitStream.new([0xaa,1,2,3,4,5,6,7,8].pack("C*"))}
 		it '#read 8' do
 			expect(bs.read 8).to be 0xaa
 		end
 		it '#read 7' do
 			expect(bs.read 7).to be 0x55
+		end
+		it '#lest' do
+			expect(bs.lest).to be 72
 		end
 		context 'after read 1' do
 			before do
@@ -56,6 +65,9 @@ describe Ariblib do
 			end
 			it '#read 16' do
 				expect(bs.read 16).to be 0x5402
+			end
+			it '#lest' do
+				expect(bs.lest).to be 71
 			end
 		end
 	end
