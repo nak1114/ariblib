@@ -1,3 +1,7 @@
+#! ruby
+# -*- encoding: utf-8 -*-
+require 'pry'
+
 module Ariblib
 	class FIFO
 		attr_accessor :buf
@@ -24,59 +28,48 @@ module Ariblib
 		end
 	end
 
-	class BitStream
-		def initialize(buf)
-			@bitstream_buffer=buf
-			@bitstream_postion=0
+	#TSパケット
+	class TransportStreamPacket
+		def initialize
 		end
-		def read(size)
-			pos =@bitstream_postion>>3
-			modd=@bitstream_postion&0x07
-			@bitstream_postion+=size
-			mod =(((@bitstream_postion)^0x07).succ)&0x07
-			poss=((size+modd+7)>>3)
-			tmp=0
-			poss.times do |i|
-				tmp<<=8
-				tmp|=@bitstream_buffer.getbyte(pos+i)
-			end
-			tmpd = (tmp>>mod) & ((1<<size)-1)
-			return tmpd
-		end
-		def lest
-			@bitstream_buffer.size*8-@bitstream_postion
-		end
-		def buf
-			@bitstream_buffer
-		end
-		def buf=(a)
-			@bitstream_buffer=a
-		end
-		def pos
-			@bitstream_postion
-		end
-		def pos=(a)
-			@bitstream_postion=a
+		def set(ts)
 		end
 	end
 
+	#TSファイル
 	class TransportStreamFile
-		attr_reader :bs
-		attr_reader :payload
 		attr_reader :payload_ap
-		attr_reader :payload_unit_start_indicator
 		attr_reader :pid
 		attr_reader :adaptation_field_control
+		attr_reader :packet_start_pos
 
-		def initialize(filename,pid_list=[0x00,0x12,0x13,0x14])
-			@bs=BitStream.new(open(filename,'rb').read)
-			@payload=Hash.new{|k,v|k[v]=''.force_encoding('ASCII-8BIT')}
+
+		attr_reader :payload
+		attr_reader :bs
+		attr_reader :continuity_counter
+		attr_reader :payload_unit_start_indicator
+		attr_reader :payload_length
+
+		Default_payload={
+			0x12 => EventInformationTable.new
+		}
+		ReadSize=188*20
+		def initialize(filename,payload_list=Default_payload)
+			@file=open(filename,'rb')
+			@bs=BitStream.new(@file.read(ReadSize))
+			@payload=payload_list
+			@payload.default=TransportStreamPacket.new
+			@payload.merge!(payload_list)
 			@payload_ap=Hash.new(0)
-			@target_pid=[0x00,0x12,0x26,0x27,0x14]
+			@packet_count=0
 		end
 
 		def eof?
-			@bs.lest<=0
+			@file.eof? && (@bs.lest <= 0)
+		end
+
+		def close
+			@file.close
 		end
 
 		def sync
@@ -88,27 +81,39 @@ module Ariblib
 		end
 
 		def transport_packet
-			count                         = @bs.pos+188*8
-			sync_byte                     = @bs.read  8 #bslbf'0x47'
+			@bs=BitStream.new(@file.read(ReadSize)) if @bs.lest <= 0
+			packet_start_pos              = @bs.pos
+			sync_byte                     = @bs.getc
 			return :async unless sync_byte==0x47
-			transport_error_indicator     = @bs.read  1 #bslbf
-			@payload_unit_start_indicator = @bs.read  1 #bslbf
-			transport_priority            = @bs.read  1 #bslbf
-			@pid                          = @bs.read  13 #uimsbf
-			transport_scrambling_control  = @bs.read  2 #bslbf
-			@adaptation_field_control     = @bs.read  2 #bslbf
-			continuity_counter            = @bs.read  4 #uimsbf
-			if(adaptation_field_control==2 || adaptation_field_control==3)
+			tmp                           = @bs.getc
+			tmp=(tmp<<8)|                   @bs.getc
+			#transport_error_indicator     = @bs.read  1 #bslbf
+			#@payload_unit_start_indicator = @bs.read  1 #bslbf
+			#transport_priority            = @bs.read  1 #bslbf
+			#@pid                          = @bs.read  13 #uimsbf
+			transport_error_indicator     = tmp & 0x8000 #1 bslbf
+			@payload_unit_start_indicator = tmp & 0x4000 #1 bslbf
+			transport_priority            = tmp & 0x2000 #1 bslbf
+			@pid                          = tmp & 0x1fff #13 uimsbf
+			tmp                           = @bs.getc
+			#transport_scrambling_control  = @bs.read  2 #bslbf
+			#@adaptation_field_control     = @bs.read  2 #bslbf
+			#@continuity_counter           = @bs.read  4 #uimsbf
+			transport_scrambling_control  = tmp & 0xc0 #2 bslbf
+			adaptation_field_control1     = tmp & 0x20 #2 bslbf
+			adaptation_field_control2     = tmp & 0x10 #2 bslbf
+			@continuity_counter           = tmp & 0x0f #4 uimsbf
+			if(adaptation_field_control1 !=0 )
 				#adaptation_field()
-				adaptation_field_length    = @bs.read  8 #uimsbf
-				adaptation_field_length   += 1 #uimsbf
-				@bs.pos+=adaptation_field_length
+				@adaptation_field_length    = @bs.getc
+				@adaptation_field_length   += 1 #uimsbf
+				@adaptation_pos=@bs.pos
+				@bs.pos+=@adaptation_field_length
 			end
-			n=(count)-@bs.pos
-			if(adaptation_field_control==1 || adaptation_field_control==3 )
-				if @target_pid.include? pid then
-					@payload[@pid]+=@bs.buf.byteslice(@bs.pos/8, n/8)
-				end
+			count = packet_start_pos+188*8
+			@payload_length=((count)-@bs.pos)/8
+			if(adaptation_field_control2 !=0 )
+				@payload[@pid].set(self)
 				@payload_ap[@pid]+=1
 			end
 			@bs.pos=count

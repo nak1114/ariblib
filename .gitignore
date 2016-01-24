@@ -10,3 +10,4 @@
 
 *.txt
 spec/data/test.ts
+spec/data/test2.ts
