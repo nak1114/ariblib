@@ -24,6 +24,5 @@ describe Ariblib::String do
 			expect(ts.payload[0x12].event[i][4][0].event_name_char).to eq ref[i][0]
 			expect(ts.payload[0x12].event[i][4][0].text_char).to eq ref[i][1]
 		end
-		#expect(ts.bs.pos).to be 188*8
 	end
 end

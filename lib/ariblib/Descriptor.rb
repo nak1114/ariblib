@@ -142,6 +142,7 @@ module Ariblib
 		224  => ServiceGroupDescriptor,  #
 	}
 	DescriptorTag.default=Descriptor
+	DescriptorTag.freeze
 end
 
 __END__
