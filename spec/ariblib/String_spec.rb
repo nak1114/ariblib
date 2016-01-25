@@ -6,7 +6,7 @@ describe Ariblib::String do
 	before do
 		Encoding.default_external='utf-8'
 	end
-	it '#new' do
+	it '#new' , :debug => false do
 		5.times do
 			unless ts.transport_packet
 				break

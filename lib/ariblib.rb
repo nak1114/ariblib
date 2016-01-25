@@ -6,7 +6,7 @@ require "ariblib/BitStream"
 require "ariblib/String"
 require "ariblib/Descriptor"
 require "ariblib/ProgramSpecificInformation"
-require "ariblib/TSFile"
+require "ariblib/TransportStreamFile"
 
 module Ariblib
   # Your code goes here...
