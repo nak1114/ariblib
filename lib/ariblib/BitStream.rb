@@ -15,8 +15,24 @@ module Ariblib
 				ret
 		end
 		def getc
-			ret=@bitstream_buffer.getbyte(@bitstream_postion/8)
+			len=@bitstream_postion/8
 			@bitstream_postion+=8
+			ret =@bitstream_buffer.getbyte(len  )
+			ret
+		end
+		def gets
+			len=@bitstream_postion/8
+			@bitstream_postion+=8*2
+			ret =@bitstream_buffer.getbyte(len  ) <<  8
+			ret|=@bitstream_buffer.getbyte(len+1)
+			ret
+		end
+		def get3
+			len=@bitstream_postion/8
+			@bitstream_postion+=8*3
+			ret =@bitstream_buffer.getbyte(len  ) << 16
+			ret|=@bitstream_buffer.getbyte(len+1) <<  8
+			ret|=@bitstream_buffer.getbyte(len+2)
 			ret
 		end
 		def read(size)

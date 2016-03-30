@@ -100,9 +100,8 @@ module Ariblib
 		end
 		def esc_seq(hash , byIndexG)
 			@byIndexG=byIndexG if byIndexG
-			#binding.pry
 			args=hash.fetch(@bs.getc,Esc_Error)
-			send *args
+			send *args if @bs.pos <= @len
 		end
 		
 		Code_kanji = [0x1B, 0x24, 0x40,nil,nil,0x1B,0x28,0x4a]
@@ -224,6 +223,13 @@ module Ariblib
 			Code_kanji[3]=char1
 			Code_kanji[4]=char2
 			@dst+=Code_kanji.pack('C*').force_encoding('ISO-2022-JP').encode('utf-8')
+		#rescue => e
+		#	puts e.message
+		#	p (@bs.pos-@debug_pos)/8
+		#	@bs.pos=@debug_pos
+		#	p @bs.str(@debug_len).unpack('C*')
+		#	puts @dst
+		#	exit
 		end
 		def put_alphanumeric(char1,char2)
 			@dst+=char1.chr
@@ -251,6 +257,7 @@ module Ariblib
 		end
 
 		def initialize(bs,len)
+			@len=bs.pos+len*8
 			@bs=bs
 			@dst=''.force_encoding('utf-8')
 
@@ -262,29 +269,34 @@ module Ariblib
 			@m_pLockingGL = 0
 			@m_pLockingGR = 2
 			@m_pSingleGL = nil
-			conv(len*8)
+
+			#@str=bs.str(len).unpack('C*')
+			#bs.pos-=len*8
+			#@debug_pos=bs.pos
+			#@debug_len=len
+
+			conv
 		end
 
 		def to_utf8
 			@dst
 		end
 
-		def conv(len)
+		def conv
 			#@m_emStrSize = :STR_NORMAL
-			len+=@bs.pos
-			while(@bs.pos < len)
+			while(@bs.pos < @len)
 				dwSrcData = @bs.getc
 
 				if((dwSrcData >= 0x21) && (dwSrcData <= 0x7E)) #GL領域
 					curCodeSet = @m_CodeG[@m_pSingleGL || @m_pLockingGL];
 					@m_pSingleGL=nil
 					char2 = (curCodeSet[1])? @bs.getc  : nil #// 2バイトコード
-					send( curCodeSet[0],dwSrcData,char2)
+					send( curCodeSet[0],dwSrcData,char2) if @bs.pos <= @len
 
 				elsif((dwSrcData >= 0xA1) && (dwSrcData <= 0xFE)) #// GR領域
 					curCodeSet = @m_CodeG[@m_pLockingGR];
 					char2 = (curCodeSet[1])? @bs.getc  : nil #// 2バイトコード
-					send( curCodeSet[0],dwSrcData & 0x7f,char2 & 0x7f)
+					send( curCodeSet[0],dwSrcData & 0x7f,char2 & 0x7f) if @bs.pos <= @len
 
 				else
 					#// 制御コード

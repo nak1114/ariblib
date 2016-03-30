@@ -6,6 +6,7 @@ require "ariblib/BitStream"
 require "ariblib/String"
 require "ariblib/Descriptor"
 require "ariblib/ProgramSpecificInformation"
+require "ariblib/EventInformationTable"
 require "ariblib/TransportStreamFile"
 
 module Ariblib
