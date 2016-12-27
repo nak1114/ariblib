@@ -1,6 +1,5 @@
 #! ruby
 # -*- encoding: utf-8 -*-
-require 'pry'
 
 module Ariblib
 	class FIFO

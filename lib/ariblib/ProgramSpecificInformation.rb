@@ -1,5 +1,6 @@
 #!ruby
 # -*- encoding: utf-8 -*-
+require 'date'
 
 module Ariblib
 
@@ -246,6 +247,19 @@ module Ariblib
 			end
 			cCRC_32                         =bs.read 32 #rpchof
 			ret
+		end
+		def to_datetime(n=0)
+			dat=@contents[n]
+			return nil unless dat
+			jst=dat[0]
+			sec1  =(jst>> 0)&0x0f
+			sec10 =(jst>> 4)&0x0f
+			min1  =(jst>> 8)&0x0f
+			min10 =(jst>>12)&0x0f
+			hour1 =(jst>>16)&0x0f
+			hour10=(jst>>20)&0x0f
+			mjd   =(jst>>24)+2400001
+			return DateTime.jd(mjd,hour10*10+hour1,min10*10+min1,sec10*10+sec1)#+Rational(1,24*60)
 		end
 	end
 	class CommonDataTable < ProgramSpecificInformation #< 1Kbyte
