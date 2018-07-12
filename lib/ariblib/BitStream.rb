@@ -6,7 +6,7 @@ module Ariblib
 	#ビットストリーム
 	class BitStream
 		def initialize(buf)
-			@bitstream_buffer=buf
+			@bitstream_buffer=buf||("".encode("BINARY"))
 			@bitstream_postion=0
 		end
 		def str(byte)
